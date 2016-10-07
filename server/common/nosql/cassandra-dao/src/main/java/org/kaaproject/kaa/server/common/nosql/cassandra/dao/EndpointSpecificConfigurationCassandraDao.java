@@ -60,11 +60,12 @@ public class EndpointSpecificConfigurationCassandraDao extends AbstractVersionab
     }
 
     @Override
-    public void removeByEndpointKeyHash(String endpointKeyHash) {
-        LOG.debug("Remove endpoint specific configuration by endpointKeyHash {}", endpointKeyHash);
+    public void removeByEndpointKeyHashAndConfigurationVersion(String endpointKeyHash, Integer confSchemaVersion) {
+        LOG.debug("Remove endpoint specific configuration by endpointKeyHash {} and confSchemaVersion {}", endpointKeyHash, confSchemaVersion);
         Delete.Where deleteQuery = delete().from(getColumnFamilyName())
-                .where(eq(EPS_CONFIGURATION_KEY_HASH_PROPERTY, endpointKeyHash));
-        LOG.trace("Remove endpoint specific configuration by endpointKeyHash query {}", deleteQuery);
+                .where(eq(EPS_CONFIGURATION_KEY_HASH_PROPERTY, endpointKeyHash))
+                .and(eq(EPS_CONFIGURATION_CONFIGURATION_VERSION_PROPERTY, confSchemaVersion));
+        LOG.trace("Remove endpoint specific configuration by endpointKeyHash and confSchemaVersion query {}", deleteQuery);
         execute(deleteQuery);
     }
 

@@ -199,7 +199,7 @@ public class DefaultDeltaService implements DeltaService {
         EndpointUserConfigurationDto userConfiguration = findLatestUserConfiguration(userId, deltaKey);
 
         EndpointSpecificConfigurationDto epsConfig = Optional.ofNullable(endpointId)
-                .flatMap(endpointSpecificConfigurationService::findByEndpointKeyHash)
+                .flatMap(endpointSpecificConfigurationService::findActiveConfigurationByEndpointKeyHash)
                 .orElse(null);
 
         EndpointObjectHash epsConfHash = Optional.ofNullable(epsConfig)

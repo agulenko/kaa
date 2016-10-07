@@ -21,7 +21,7 @@ import org.kaaproject.kaa.server.common.dao.model.EndpointSpecificConfiguration;
 
 public interface EndpointSpecificConfigurationDao<T extends EndpointSpecificConfiguration> extends Dao<T, String> {
 
-    void removeByEndpointKeyHash(String endpointKeyHash);
+    void removeByEndpointKeyHashAndConfigurationVersion(String endpointKeyHash, Integer confSchemaVersion);
 
     EndpointSpecificConfiguration findByEndpointKeyHashAndConfigurationVersion(String endpointKeyHash, int configurationVersion);
 

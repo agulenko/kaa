@@ -56,7 +56,7 @@ public final class CassandraEndpointSpecificConfiguration implements EndpointSpe
 
     public CassandraEndpointSpecificConfiguration(EndpointSpecificConfigurationDto dto) {
         this.endpointKeyHash = dto.getEndpointKeyHash();
-        this.configurationVersion = dto.getConfigurationVersion();
+        this.configurationVersion = dto.getConfigurationSchemaVersion();
         this.configuration = dto.getConfiguration();
         this.version = dto.getVersion();
     }
@@ -66,7 +66,7 @@ public final class CassandraEndpointSpecificConfiguration implements EndpointSpe
         EndpointSpecificConfigurationDto dto = new EndpointSpecificConfigurationDto();
         dto.setEndpointKeyHash(this.getEndpointKeyHash());
         dto.setConfiguration(this.getConfiguration());
-        dto.setConfigurationVersion(this.getConfigurationVersion());
+        dto.setConfigurationSchemaVersion(this.getConfigurationVersion());
         dto.setVersion(this.getVersion());
         return dto;
     }

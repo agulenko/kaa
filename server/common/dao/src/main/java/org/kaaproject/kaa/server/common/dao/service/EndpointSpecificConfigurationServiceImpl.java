@@ -16,6 +16,8 @@
 
 package org.kaaproject.kaa.server.common.dao.service;
 
+import org.apache.commons.codec.binary.Base64;
+import org.kaaproject.kaa.common.dto.ConfigurationDto;
 import org.kaaproject.kaa.common.dto.EndpointProfileDto;
 import org.kaaproject.kaa.common.dto.EndpointSpecificConfigurationDto;
 import org.kaaproject.kaa.server.common.dao.ConfigurationService;
@@ -32,6 +34,7 @@ import org.springframework.util.Base64Utils;
 
 import java.util.Optional;
 
+import static org.kaaproject.kaa.server.common.dao.service.Validator.validateNotNull;
 import static org.kaaproject.kaa.server.common.dao.service.Validator.validateString;
 
 @Service
@@ -45,9 +48,8 @@ public class EndpointSpecificConfigurationServiceImpl implements EndpointSpecifi
     @Autowired
     private ConfigurationService configurationService;
 
-    @Override
-    public Optional<EndpointSpecificConfigurationDto> findByEndpointKeyHash(String endpointKeyHash) {
-        LOG.debug("Looking for endpoint specific configuration by EP key hash {}", endpointKeyHash);
+    public Optional<EndpointSpecificConfigurationDto> findActiveConfigurationByEndpointKeyHash(String endpointKeyHash) {
+        LOG.debug("Looking for active endpoint specific configuration by EP key hash {}", endpointKeyHash);
         EndpointProfileDto profileDto = getEndpointProfileDto(endpointKeyHash);
         if (profileDto == null) {
             return Optional.empty();
@@ -57,19 +59,42 @@ public class EndpointSpecificConfigurationServiceImpl implements EndpointSpecifi
     }
 
     @Override
-    public Optional<EndpointSpecificConfigurationDto> findByEndpointProfile(EndpointProfileDto endpointProfileDto) {
-        String base64EncodedEndpointKeyHash = Base64Utils.encodeToString(endpointProfileDto.getEndpointKeyHash());
-        int configurationVersion = endpointProfileDto.getConfigurationVersion();
-        EndpointSpecificConfiguration configuration = endpointSpecificConfigurationDao.findByEndpointKeyHashAndConfigurationVersion(base64EncodedEndpointKeyHash, configurationVersion);
+    public Optional<EndpointSpecificConfigurationDto> findByEndpointKeyHashAndConfSchemaVersion(String endpointKeyHash, Integer confSchemaVersion) {
+        LOG.debug("Looking for endpoint specific configuration by EP key hash {} and confSchemaVersion", endpointKeyHash, confSchemaVersion);
+        validateNotNull(confSchemaVersion, "Configuration schema version is required");
+        EndpointProfileDto profileDto = getEndpointProfileDto(endpointKeyHash);
+        if (profileDto == null) {
+            return Optional.empty();
+        }
+        ConfigurationDto configurationDto = configurationService.findConfigurationByAppIdAndVersion(profileDto.getApplicationId(), confSchemaVersion);
+        validateNotNull(configurationDto, "Configuration schema with provided version doesn't exists.");
+        EndpointSpecificConfiguration configuration = endpointSpecificConfigurationDao.findByEndpointKeyHashAndConfigurationVersion(endpointKeyHash, confSchemaVersion);
         return Optional.ofNullable(configuration).map(ToDto::toDto);
-
     }
 
     @Override
-    public Optional<EndpointSpecificConfigurationDto> deleteByEndpointKeyHash(String endpointKeyHash) {
-        Optional<EndpointSpecificConfigurationDto> configuration = findByEndpointKeyHash(endpointKeyHash);
+    public Optional<EndpointSpecificConfigurationDto> findActiveConfigurationByEndpointProfile(EndpointProfileDto endpointProfileDto) {
+        String base64EncodedEndpointKeyHash = Base64.encodeBase64String(endpointProfileDto.getEndpointKeyHash());
+        int configurationVersion = endpointProfileDto.getConfigurationVersion();
+        EndpointSpecificConfiguration configuration = endpointSpecificConfigurationDao.findByEndpointKeyHashAndConfigurationVersion(base64EncodedEndpointKeyHash, configurationVersion);
+        return Optional.ofNullable(configuration).map(ToDto::toDto);
+    }
+
+    @Override
+    public Optional<EndpointSpecificConfigurationDto> deleteActiveConfigurationByEndpointKeyHash(String endpointKeyHash) {
+        Optional<EndpointSpecificConfigurationDto> configuration = findActiveConfigurationByEndpointKeyHash(endpointKeyHash);
         if (configuration.isPresent()) {
-            endpointSpecificConfigurationDao.removeByEndpointKeyHash(endpointKeyHash);
+            int confSchemaVersion = configuration.get().getConfigurationSchemaVersion();
+            endpointSpecificConfigurationDao.removeByEndpointKeyHashAndConfigurationVersion(endpointKeyHash, confSchemaVersion);
+        }
+        return configuration;
+    }
+
+    @Override
+    public Optional<EndpointSpecificConfigurationDto> deleteByEndpointKeyHashAndConfSchemaVersion(String endpointKeyHash, Integer confSchemaVersion) {
+        Optional<EndpointSpecificConfigurationDto> configuration = findByEndpointKeyHashAndConfSchemaVersion(endpointKeyHash, confSchemaVersion);
+        if (configuration.isPresent()) {
+            endpointSpecificConfigurationDao.removeByEndpointKeyHashAndConfigurationVersion(endpointKeyHash, confSchemaVersion);
         }
         return configuration;
     }
@@ -77,21 +102,22 @@ public class EndpointSpecificConfigurationServiceImpl implements EndpointSpecifi
     @Override
     public EndpointSpecificConfigurationDto save(EndpointSpecificConfigurationDto configurationDto) {
         EndpointProfileDto profileDto = getEndpointProfileDto(configurationDto.getEndpointKeyHash());
-        configurationDto.setConfigurationVersion(profileDto.getConfigurationVersion());
-        validateEndpointSpecificConfiguration(configurationDto, profileDto);
+        if (configurationDto.getConfigurationSchemaVersion() == null) {
+            configurationDto.setConfigurationSchemaVersion(profileDto.getConfigurationVersion());
+        }
+        validateEndpointSpecificConfiguration(configurationDto, profileDto.getApplicationId());
         return endpointSpecificConfigurationDao.save(configurationDto).toDto();
     }
 
     private EndpointProfileDto getEndpointProfileDto(String endpointKeyHash) {
         validateString(endpointKeyHash, "Endpoint key hash is required");
-        return endpointService.findEndpointProfileByKeyHash(Base64Utils.decodeFromString(endpointKeyHash));
+        byte[] endpointKey = Base64.decodeBase64(endpointKeyHash);
+        return endpointService.findEndpointProfileByKeyHash(endpointKey);
     }
 
-
-    private void validateEndpointSpecificConfiguration(EndpointSpecificConfigurationDto configurationDto, EndpointProfileDto ep) {
+    private void validateEndpointSpecificConfiguration(EndpointSpecificConfigurationDto configurationDto, String appId) {
         validateString(configurationDto.getConfiguration(), "Endpoint specific configuration body is required");
-        int configurationVersion = configurationDto.getConfigurationVersion();
-        String appId = ep.getApplicationId();
+        int configurationVersion = configurationDto.getConfigurationSchemaVersion();
         String configurationBody = configurationDto.getConfiguration();
         configurationBody = configurationService.validateOverrideConfigurationBody(appId, configurationVersion, configurationBody);
         configurationDto.setConfiguration(configurationBody);

@@ -44,18 +44,16 @@ public class EndpointSpecificConfigurationCassandraDaoTest extends AbstractCassa
     private EndpointSpecificConfigurationDto saved3;
 
     @Test
-    public void testRemoveByEndpointKeyHash() throws Exception {
-        List<CassandraEndpointSpecificConfiguration> found = endpointSpecificConfigurationDao.find();
-        Assert.assertTrue(found.size() == 3);
-        endpointSpecificConfigurationDao.removeByEndpointKeyHash(KEY);
-        found = endpointSpecificConfigurationDao.find();
-        Assert.assertTrue(found.size() == 1);
+    public void testRemoveByEndpointKeyHashAndConfigurationVersion() throws Exception {
+        Assert.assertTrue(endpointSpecificConfigurationDao.find().size() == 3);
+        endpointSpecificConfigurationDao.removeByEndpointKeyHashAndConfigurationVersion(KEY, 0);
+        Assert.assertTrue(endpointSpecificConfigurationDao.find().size() == 2);
+        Assert.assertTrue(endpointSpecificConfigurationDao.findByEndpointKeyHashAndConfigurationVersion(KEY, 0) == null);
     }
 
     @Test
     public void testFindByEndpointKeyHashAndConfigurationVersion() throws Exception {
-        List<CassandraEndpointSpecificConfiguration> found = endpointSpecificConfigurationDao.find();
-        Assert.assertTrue(found.size() == 3);
+        Assert.assertTrue(endpointSpecificConfigurationDao.find().size() == 3);
         EndpointSpecificConfigurationDto found1 = endpointSpecificConfigurationDao.findByEndpointKeyHashAndConfigurationVersion(KEY, 0).toDto();
         EndpointSpecificConfigurationDto found2 = endpointSpecificConfigurationDao.findByEndpointKeyHashAndConfigurationVersion(KEY, 1).toDto();
         EndpointSpecificConfigurationDto found3 = endpointSpecificConfigurationDao.findByEndpointKeyHashAndConfigurationVersion(KEY_2, 0).toDto();

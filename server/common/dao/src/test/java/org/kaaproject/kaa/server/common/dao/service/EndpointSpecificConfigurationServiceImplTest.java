@@ -20,14 +20,17 @@ import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+import org.kaaproject.kaa.common.dto.ConfigurationDto;
 import org.kaaproject.kaa.common.dto.EndpointProfileDto;
 import org.kaaproject.kaa.common.dto.EndpointSpecificConfigurationDto;
 import org.kaaproject.kaa.server.common.dao.ConfigurationService;
 import org.kaaproject.kaa.server.common.dao.EndpointService;
+import org.kaaproject.kaa.server.common.dao.exception.IncorrectParameterException;
 import org.kaaproject.kaa.server.common.dao.impl.EndpointSpecificConfigurationDao;
 import org.kaaproject.kaa.server.common.dao.model.EndpointSpecificConfiguration;
 import org.springframework.util.Base64Utils;
 
+import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
@@ -35,6 +38,7 @@ import static org.mockito.Mockito.when;
 
 
 public class EndpointSpecificConfigurationServiceImplTest {
+
     private static final String KEY = "keyHasg=";
     private static final String APP_ID = "app";
     private static final String CONFIG_BODY = "body";
@@ -45,6 +49,7 @@ public class EndpointSpecificConfigurationServiceImplTest {
     private EndpointService endpointServiceMock = mock(EndpointService.class);
     private ConfigurationService configurationServiceMock = mock(ConfigurationService.class);
     private EndpointSpecificConfiguration configuration = mock(EndpointSpecificConfiguration.class);
+    private EndpointSpecificConfigurationDto configurationDto = mock(EndpointSpecificConfigurationDto.class);
 
     @Before
     public void setUp() throws Exception {
@@ -54,9 +59,9 @@ public class EndpointSpecificConfigurationServiceImplTest {
     }
 
     @Test
-    public void shouldSave() {
+    public void testShouldSaveWithActiveConfigSchemaVersion() {
         EndpointSpecificConfigurationDto dto = new EndpointSpecificConfigurationDto();
-        dto.setConfigurationVersion(null);
+        dto.setConfigurationSchemaVersion(null);
         dto.setEndpointKeyHash(KEY);
         dto.setConfiguration(CONFIG_BODY);
         when(endpointServiceMock.findEndpointProfileByKeyHash(DECODED_KEY)).thenReturn(generateProfile());
@@ -70,48 +75,89 @@ public class EndpointSpecificConfigurationServiceImplTest {
     }
 
     @Test
-    public void testShouldFoundByEndpointProfile() {
+    public void testShouldSaveWithProvidedConfigSchemaVersion() {
+        EndpointSpecificConfigurationDto dto = new EndpointSpecificConfigurationDto();
+        dto.setConfigurationSchemaVersion(7);
+        dto.setEndpointKeyHash(KEY);
+        dto.setConfiguration(CONFIG_BODY);
+        when(endpointServiceMock.findEndpointProfileByKeyHash(DECODED_KEY)).thenReturn(generateProfile());
+        when(configurationServiceMock.validateOverrideConfigurationBody(APP_ID, 7, CONFIG_BODY)).thenReturn("valid body");
+        when(daoMock.save(dto)).thenReturn(configuration);
+        when(configuration.toDto()).thenReturn(new EndpointSpecificConfigurationDto());
+        Assert.assertTrue(SERVICE.save(dto) != null);
+        verify(configurationServiceMock).validateOverrideConfigurationBody(APP_ID, 7, CONFIG_BODY);
+        verify(endpointServiceMock).findEndpointProfileByKeyHash(DECODED_KEY);
+        verify(daoMock).save(dto);
+    }
+
+    @Test
+    public void testShouldActiveConfigurationByEndpointProfile() {
         when(daoMock.findByEndpointKeyHashAndConfigurationVersion(KEY, CONF_VERSION)).thenReturn(configuration);
         when(configuration.toDto()).thenReturn(new EndpointSpecificConfigurationDto());
-        Assert.assertTrue(SERVICE.findByEndpointProfile(generateProfile()).isPresent());
+        Assert.assertTrue(SERVICE.findActiveConfigurationByEndpointProfile(generateProfile()).isPresent());
         verify(daoMock).findByEndpointKeyHashAndConfigurationVersion(KEY, CONF_VERSION);
     }
 
     @Test
-    public void testShouldFoundByEndpointKeyHash() {
+    public void testShouldFindActiveConfigurationByEndpointKeyHash() {
+        EndpointSpecificConfigurationDto dto = new EndpointSpecificConfigurationDto();
+        dto.setConfigurationSchemaVersion(CONF_VERSION);
         when(endpointServiceMock.findEndpointProfileByKeyHash(DECODED_KEY)).thenReturn(generateProfile());
         when(daoMock.findByEndpointKeyHashAndConfigurationVersion(KEY, CONF_VERSION)).thenReturn(configuration);
-        when(configuration.toDto()).thenReturn(new EndpointSpecificConfigurationDto());
-        Assert.assertTrue(SERVICE.findByEndpointKeyHash(KEY).isPresent());
+        when(configuration.toDto()).thenReturn(dto);
+        Assert.assertTrue(SERVICE.findActiveConfigurationByEndpointKeyHash(KEY).isPresent());
         verify(endpointServiceMock).findEndpointProfileByKeyHash(DECODED_KEY);
         verify(daoMock).findByEndpointKeyHashAndConfigurationVersion(KEY, CONF_VERSION);
     }
 
-    @Test
-    public void testShouldNotFoundByEndpointKeyHashWhenProfileNotFound() {
-        when(endpointServiceMock.findEndpointProfileByKeyHash(DECODED_KEY)).thenReturn(null);
-        Assert.assertFalse(SERVICE.findByEndpointKeyHash(KEY).isPresent());
-        verify(endpointServiceMock).findEndpointProfileByKeyHash(DECODED_KEY);
+    @Test(expected = IncorrectParameterException.class)
+    public void testShouldNotFindActiveConfigurationByEndpointKeyHashWhenProfileNotFound() {
+        try {
+            when(endpointServiceMock.findEndpointProfileByKeyHash(DECODED_KEY)).thenReturn(null);
+            Assert.assertFalse(SERVICE.findActiveConfigurationByEndpointKeyHash(KEY).isPresent());
+        } catch (Exception e) {
+            verify(endpointServiceMock).findEndpointProfileByKeyHash(DECODED_KEY);
+            throw e;
+        }
     }
 
     @Test
-    public void testShouldDeleteByEndpointKeyHash() {
+    public void testShouldDeleteActiveConfigurationByEndpointKeyHash() {
         when(endpointServiceMock.findEndpointProfileByKeyHash(DECODED_KEY)).thenReturn(generateProfile());
         when(daoMock.findByEndpointKeyHashAndConfigurationVersion(KEY, CONF_VERSION)).thenReturn(configuration);
-        when(configuration.toDto()).thenReturn(new EndpointSpecificConfigurationDto());
-        Assert.assertTrue(SERVICE.deleteByEndpointKeyHash(KEY).isPresent());
+        when(configuration.toDto()).thenReturn(configurationDto);
+        when(configurationDto.getConfigurationSchemaVersion()).thenReturn(CONF_VERSION);
+        Assert.assertTrue(SERVICE.deleteActiveConfigurationByEndpointKeyHash(KEY).isPresent());
         verify(endpointServiceMock).findEndpointProfileByKeyHash(DECODED_KEY);
         verify(daoMock).findByEndpointKeyHashAndConfigurationVersion(KEY, CONF_VERSION);
-        verify(daoMock).removeByEndpointKeyHash(KEY);
+        verify(daoMock).removeByEndpointKeyHashAndConfigurationVersion(KEY, CONF_VERSION);
     }
 
     @Test
-    public void testShouldNotDeleteByEndpointKeyHashWhenProfileNotFound() {
-        when(endpointServiceMock.findEndpointProfileByKeyHash(DECODED_KEY)).thenReturn(generateProfile());
-        when(daoMock.findByEndpointKeyHashAndConfigurationVersion(KEY, CONF_VERSION)).thenReturn(null);
-        Assert.assertFalse(SERVICE.deleteByEndpointKeyHash(KEY).isPresent());
+    public void testShouldDeleteByEndpointKeyHashAndConfSchemaVersion() {
+        EndpointProfileDto profile = generateProfile();
+        profile.setConfigurationVersion(0);
+        when(endpointServiceMock.findEndpointProfileByKeyHash(DECODED_KEY)).thenReturn(profile);
+        when(daoMock.findByEndpointKeyHashAndConfigurationVersion(KEY, CONF_VERSION)).thenReturn(configuration);
+        when(configuration.toDto()).thenReturn(configurationDto);
+        when(configurationServiceMock.findConfigurationByAppIdAndVersion(APP_ID, CONF_VERSION)).thenReturn(new ConfigurationDto());
+        when(configurationDto.getConfigurationSchemaVersion()).thenReturn(CONF_VERSION);
+        Assert.assertTrue(SERVICE.deleteByEndpointKeyHashAndConfSchemaVersion(KEY, CONF_VERSION).isPresent());
         verify(endpointServiceMock).findEndpointProfileByKeyHash(DECODED_KEY);
         verify(daoMock).findByEndpointKeyHashAndConfigurationVersion(KEY, CONF_VERSION);
+        verify(daoMock).removeByEndpointKeyHashAndConfigurationVersion(KEY, CONF_VERSION);
+        verify(configurationServiceMock).findConfigurationByAppIdAndVersion(APP_ID, CONF_VERSION);
+    }
+
+    @Test(expected = IncorrectParameterException.class)
+    public void testShouldNotDeleteActiveConfigurationByEndpointKeyHashWhenProfileNotFound() {
+        try {
+            when(endpointServiceMock.findEndpointProfileByKeyHash(any())).thenReturn(null);
+            Assert.assertFalse(SERVICE.deleteActiveConfigurationByEndpointKeyHash(KEY).isPresent());
+        } catch (Exception e) {
+            verify(endpointServiceMock).findEndpointProfileByKeyHash(any());
+            throw e;
+        }
     }
 
     private EndpointProfileDto generateProfile() {

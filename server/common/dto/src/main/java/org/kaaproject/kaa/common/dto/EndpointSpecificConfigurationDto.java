@@ -23,26 +23,26 @@ public class EndpointSpecificConfigurationDto implements Serializable {
     private static final long serialVersionUID = -1443936688020191482L;
 
     private String endpointKeyHash;
-    private Integer configurationVersion;
+    private Integer configurationSchemaVersion;
     private String configuration;
     private Long version;
 
     public EndpointSpecificConfigurationDto() {
     }
 
-    public EndpointSpecificConfigurationDto(String endpointKeyHash, Integer configurationVersion, String configuration, Long version) {
+    public EndpointSpecificConfigurationDto(String endpointKeyHash, Integer configurationSchemaVersion, String configuration, Long version) {
         this.endpointKeyHash = endpointKeyHash;
-        this.configurationVersion = configurationVersion;
+        this.configurationSchemaVersion = configurationSchemaVersion;
         this.configuration = configuration;
         this.version = version;
     }
 
-    public Integer getConfigurationVersion() {
-        return configurationVersion;
+    public Integer getConfigurationSchemaVersion() {
+        return configurationSchemaVersion;
     }
 
-    public void setConfigurationVersion(Integer configurationVersion) {
-        this.configurationVersion = configurationVersion;
+    public void setConfigurationSchemaVersion(Integer configurationSchemaVersion) {
+        this.configurationSchemaVersion = configurationSchemaVersion;
     }
 
     public String getConfiguration() {
@@ -78,7 +78,7 @@ public class EndpointSpecificConfigurationDto implements Serializable {
 
         if (endpointKeyHash != null ? !endpointKeyHash.equals(that.endpointKeyHash) : that.endpointKeyHash != null)
             return false;
-        if (configurationVersion != null ? !configurationVersion.equals(that.configurationVersion) : that.configurationVersion != null)
+        if (configurationSchemaVersion != null ? !configurationSchemaVersion.equals(that.configurationSchemaVersion) : that.configurationSchemaVersion != null)
             return false;
         return configuration != null ? configuration.equals(that.configuration) : that.configuration == null;
 
@@ -87,7 +87,7 @@ public class EndpointSpecificConfigurationDto implements Serializable {
     @Override
     public int hashCode() {
         int result = endpointKeyHash != null ? endpointKeyHash.hashCode() : 0;
-        result = 31 * result + (configurationVersion != null ? configurationVersion.hashCode() : 0);
+        result = 31 * result + (configurationSchemaVersion != null ? configurationSchemaVersion.hashCode() : 0);
         result = 31 * result + (configuration != null ? configuration.hashCode() : 0);
         return result;
     }
@@ -96,7 +96,7 @@ public class EndpointSpecificConfigurationDto implements Serializable {
     public String toString() {
         return "EndpointSpecificConfigurationDto{" +
                 "endpointKeyHash='" + endpointKeyHash + '\'' +
-                ", schemaVersion=" + configurationVersion +
+                ", schemaVersion=" + configurationSchemaVersion +
                 ", configuration='" + configuration + '\'' +
                 '}';
     }
